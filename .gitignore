@@ -1,0 +1,5 @@
+#ignore mac sys file 
+.DS_Store 
+
+#ignore dataset
+344929_344939_34484/dataset/
