@@ -86,6 +86,7 @@ if __name__ == '__main__':
     # If an argument is not given, it will take its default value as defined below.
     parser = argparse.ArgumentParser()
     # Feel free to add more arguments here if you need!
+    parser.add_argument('--method', default="dummy-classifier", type=str, help="method to run")
 
     # MS2 arguments
     parser.add_argument('--data', default="dataset", type=str, help="path to your dataset")
