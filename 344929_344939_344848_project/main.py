@@ -19,17 +19,25 @@ def main(args):
                           of this file). Their value can be accessed as "args.argument".
     """
     ## 1. First, we load our data and flatten the images into vectors
-    xtrain, xtest, ytrain = load_data(args.data_path)
+    xtrain, xtest, ytrain = load_data(args.data)
     xtrain = xtrain.reshape(xtrain.shape[0], -1)
     xtest = xtest.reshape(xtest.shape[0], -1)
+
+    ## WARNING : debug
+    print(f"------------start-debug--------------\n"
+            f"-> reshaped\n"
+            f"xtrain : {xtrain.shape}\n"
+            f"xtest : {xtest.shape}\n"
+            f"ytrain : {ytrain.shape}\n"
+            f"--------------end-debug--------------\n")
 
     ## 2. Then we must prepare it. This is were you can create a validation set,
     #  normalize, add bias, etc.
 
     # Make a validation set
     if not args.test:
+        pass
     ### WRITE YOUR CODE HERE
-        print("Using PCA")
 
     ### WRITE YOUR CODE HERE to do any other data processing
 
@@ -49,7 +57,13 @@ def main(args):
     # Note: you might need to reshape the data depending on the network you use!
     n_classes = get_n_classes(ytrain)
     if args.nn_type == "mlp":
-        model = ... ### WRITE YOUR CODE HERE
+        model = MLP(xtrain.shape[1], n_classes)
+    elif args.nn_type == "cnn":
+        model = CNN(1, n_classes)
+    elif args.nn_type == "transformer":
+        model = MyViT((1, 28, 28), 7, 2, 8, 2, n_classes)
+    else:
+        pass
 
     summary(model)
 

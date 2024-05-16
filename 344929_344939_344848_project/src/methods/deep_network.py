@@ -2,6 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import TensorDataset, DataLoader
+from src.utils import *
+
+PRINT_EACH = 100
 
 ## MS2
 
@@ -25,11 +28,22 @@ class MLP(nn.Module):
             n_classes (int): number of classes to predict
         """
         super().__init__()
-        ##
-        ###
-        #### WRITE YOUR CODE HERE!
-        ###
-        ##
+        self.mlp = nn.Sequential(
+            # Linear block 1
+            nn.Linear(input_size, 512      , bias=True),
+            nn.ReLU(),
+            # Linear block 2
+            nn.Linear(512       , 256      , bias=True),
+            nn.ReLU(),
+            #Linear block 3
+            nn.Linear(256       , 128      , bias=True),
+            nn.ReLU(),
+            ## linear block 4
+            nn.Linear(128       , n_classes, bias=True)
+        )
+        #self.mlp = nn.Sequential(
+        #    nn.Linear(input_size, n_classes, bias=True)
+        #)
 
     def forward(self, x):
         """
@@ -41,11 +55,8 @@ class MLP(nn.Module):
             preds (tensor): logits of predictions of shape (N, C)
                 Reminder: logits are value pre-softmax.
         """
-        ##
-        ###
-        #### WRITE YOUR CODE HERE!
-        ###
-        ##
+        preds = self.mlp(x)
+
         return preds
 
 
@@ -68,11 +79,52 @@ class CNN(nn.Module):
             n_classes (int): number of classes to predict
         """
         super().__init__()
-        ##
-        ###
-        #### WRITE YOUR CODE HERE!
-        ###
-        ##
+        self.cnn = nn.Sequential(
+            # Conv block 1  (-> output: (8, 14, 14))
+            nn.Conv2d(input_channels, 8, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+        
+            # Conv block 2  (-> output: (16, 7, 7))
+            nn.Conv2d(8, 16, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+        
+            #Conv block 3  (-> output: (32, 4, 4))
+            nn.Conv2d(16, 32, kernel_size=3, padding=2),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+        
+            # Flatten to a vector before feeding it to the mlp
+            nn.Flatten(-3),
+        
+            # MLP block 1
+            nn.Linear(32 * 4 * 4, 256, bias=True),
+            nn.ReLU(),
+            
+            # MLP block 2
+            nn.Linear(256, 128, bias=True),
+            nn.ReLU(),
+            
+            # MLP block 3
+            nn.Linear(128, n_classes, bias=True)
+        )
+
+        #self.cnn = nn.Sequential(
+        #    # Conv block 1  (-> output: (8, 14, 14))
+        #    nn.Conv2d(input_channels, 8, kernel_size=3, padding=1),
+        #    nn.ReLU(),
+        #    nn.MaxPool2d(kernel_size=2, stride=2),
+        #
+        #    nn.Flatten(-3),
+        #
+        #    # MLP block 1
+        #    nn.Linear(1568, 128, bias=True),
+        #    nn.ReLU(),
+        #    
+        #    # MLP block 2
+        #    nn.Linear(128, n_classes, bias=True)
+        #)
 
     def forward(self, x):
         """
@@ -84,11 +136,8 @@ class CNN(nn.Module):
             preds (tensor): logits of predictions of shape (N, C)
                 Reminder: logits are value pre-softmax.
         """
-        ##
-        ###
-        #### WRITE YOUR CODE HERE!
-        ###
-        ##
+        preds = self.cnn(x)
+
         return preds
 
 
@@ -103,11 +152,16 @@ class MyViT(nn.Module):
         
         """
         super().__init__()
-        ##
-        ###
-        #### WRITE YOUR CODE HERE!
-        ###
-        ##
+        self.c, self.h, self.w = chw
+        self.n_patches = n_patches
+        print(self.n_patches % self.w)
+        assert self.n_patches % self.w == 0 and self.n_patches % self.h == 0
+        self.patch_size_w = self.w / n_patches
+        self.patch_size_h = self.h / n_patches
+        self.n_blocks  = n_blocks
+        self.hidden_d  = hidden_d
+        self.n_heads   = n_heads
+        self.out_d     = out_d
 
     def forward(self, x):
         """
@@ -119,11 +173,26 @@ class MyViT(nn.Module):
             preds (tensor): logits of predictions of shape (N, C)
                 Reminder: logits are value pre-softmax.
         """
-        ##
-        ###
-        #### WRITE YOUR CODE HERE!
-        ###
-        ##
+        # images -> patches
+        n, c, h, w = x.shape
+        print(x.shape)
+        patches = torch.zeros(n, self.n_patches ** 2, h * w * c // self.n_patches ** 2)
+        x.unfold(2, self.patch_size_w, self.patch_size_w).unfold(3, self.patch_size_h, self.patch_size_h)
+        print(x.shape)
+        patch_size = h // self.n_patches
+
+        for idx, image in enumerate(x):
+            for i in range(self.n_patches):
+                for j in range(self.n_patches):
+
+                    # Extract the patch of the image.
+                    patch = image[:, i * patch_size: (i + 1) * patch_size, j * patch_size: (j + 1) * patch_size] ### WRITE YOUR CODE HERE
+
+                    # Flatten the patch and store it.
+                    patches[idx, i * self.n_patches + j] = patch.flatten()
+
+        
+
         return preds
 
 
@@ -150,7 +219,7 @@ class Trainer(object):
         self.batch_size = batch_size
 
         self.criterion = nn.CrossEntropyLoss()
-        self.optimizer = ...  ### WRITE YOUR CODE HERE
+        self.optimizer = torch.optim.SGD(model.parameters(), lr=lr)
 
     def train_all(self, dataloader):
         """
@@ -163,9 +232,8 @@ class Trainer(object):
             dataloader (DataLoader): dataloader for training data
         """
         for ep in range(self.epochs):
-            self.train_one_epoch(dataloader)
+            self.train_one_epoch(dataloader, ep)
 
-            ### WRITE YOUR CODE HERE if you want to do add something else at each epoch
 
     def train_one_epoch(self, dataloader, ep):
         """
@@ -177,11 +245,23 @@ class Trainer(object):
         Arguments:
             dataloader (DataLoader): dataloader for training data
         """
-        ##
-        ###
-        #### WRITE YOUR CODE HERE!
-        ###
-        ##
+        self.model.train()
+        running_loss = 0
+        for iter, batch in enumerate(dataloader):
+            inputs, labels = batch
+            #zero gradients
+            self.optimizer.zero_grad()
+
+            # fwd + bwd + optimize
+            logists = self.model(inputs)
+            loss = self.criterion(logists, labels)
+            running_loss += loss.item()
+            loss.backward()
+            self.optimizer.step()
+
+            if iter % PRINT_EACH == PRINT_EACH-1:
+                print(f"[{ep+1}, {iter+1:5d}] average_loss: {running_loss/PRINT_EACH}")
+                running_loss = 0
 
     def predict_torch(self, dataloader):
         """
@@ -200,12 +280,15 @@ class Trainer(object):
             pred_labels (torch.tensor): predicted labels of shape (N,),
                 with N the number of data points in the validation/test data.
         """
-        ##
-        ###
-        #### WRITE YOUR CODE HERE!
-        ###
-        ##
-        return pred_labels
+        self.model.eval()
+        pred_labels = []
+        with torch.no_grad():
+            for inputs in dataloader:
+                outputs = self.model(inputs[0])
+                pred_labels.append(outputs)
+        pred_labels = torch.cat(pred_labels)
+        
+        return F.softmax(pred_labels, dim=1)
     
     def fit(self, training_data, training_labels):
         """
@@ -219,9 +302,20 @@ class Trainer(object):
         Returns:
             pred_labels (array): target of shape (N,)
         """
+        N, D = training_data.shape
+        W = H = int(np.sqrt(D))
+        assert W * H == D
+        if isinstance(self.model, CNN):
+            # add number of channels
+            training_data_reshaped = training_data.reshape(N, 1, W, H)
+        elif isinstance(self.model, MLP):
+            training_data_reshaped = training_data
+        elif isinstance(self.model, MyViT):
+            pass
 
-        # First, prepare data for pytorch
-        train_dataset = TensorDataset(torch.from_numpy(training_data).float(), 
+        # transform target to one hot independently of the model
+        training_labels = label_to_onehot(training_labels)
+        train_dataset = TensorDataset(torch.from_numpy(training_data_reshaped).float(), 
                                       torch.from_numpy(training_labels))
         train_dataloader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
         
@@ -240,6 +334,17 @@ class Trainer(object):
         Returns:
             pred_labels (array): labels of shape (N,)
         """
+        N, D = test_data.shape
+        W = H = int(np.sqrt(D))
+        assert W * H == D
+        if isinstance(self.model, CNN):
+            # add number of channels
+            test_data = test_data.reshape(N, 1, W, H)
+        elif isinstance(self.model, MLP):
+            # nothing to be done input already has correct shape
+            pass
+        elif isinstance(self.model, MyViT):
+            pass
         # First, prepare data for pytorch
         test_dataset = TensorDataset(torch.from_numpy(test_data).float())
         test_dataloader = DataLoader(test_dataset, batch_size=self.batch_size, shuffle=False)
@@ -247,4 +352,4 @@ class Trainer(object):
         pred_labels = self.predict_torch(test_dataloader)
 
         # We return the labels after transforming them into numpy array.
-        return pred_labels.cpu().numpy()
+        return onehot_to_label(pred_labels.cpu().numpy())
