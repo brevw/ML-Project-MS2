@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torch.utils.data import TensorDataset, DataLoader
 from src.utils import *
 
-PRINT_EACH = 100
+PRINT_EACH = 500
 
 ## MS2
 
@@ -30,20 +30,17 @@ class MLP(nn.Module):
         super().__init__()
         self.mlp = nn.Sequential(
             # Linear block 1
-            nn.Linear(input_size, 512      , bias=True),
+            nn.Linear(input_size, 128      , bias=True),
             nn.ReLU(),
             # Linear block 2
-            nn.Linear(512       , 256      , bias=True),
+            nn.Linear(128       , 64      , bias=True),
             nn.ReLU(),
             #Linear block 3
-            nn.Linear(256       , 128      , bias=True),
+            nn.Linear(64       , 32      , bias=True),
             nn.ReLU(),
             ## linear block 4
-            nn.Linear(128       , n_classes, bias=True)
+            nn.Linear(32       , n_classes, bias=True)
         )
-        #self.mlp = nn.Sequential(
-        #    nn.Linear(input_size, n_classes, bias=True)
-        #)
 
     def forward(self, x):
         """
@@ -109,22 +106,6 @@ class CNN(nn.Module):
             # MLP block 3
             nn.Linear(128, n_classes, bias=True)
         )
-
-        #self.cnn = nn.Sequential(
-        #    # Conv block 1  (-> output: (8, 14, 14))
-        #    nn.Conv2d(input_channels, 8, kernel_size=3, padding=1),
-        #    nn.ReLU(),
-        #    nn.MaxPool2d(kernel_size=2, stride=2),
-        #
-        #    nn.Flatten(-3),
-        #
-        #    # MLP block 1
-        #    nn.Linear(1568, 128, bias=True),
-        #    nn.ReLU(),
-        #    
-        #    # MLP block 2
-        #    nn.Linear(128, n_classes, bias=True)
-        #)
 
     def forward(self, x):
         """
@@ -315,7 +296,7 @@ class Trainer(object):
                 pred_labels.append(outputs)
         pred_labels = torch.cat(pred_labels)
         
-        return F.softmax(pred_labels, dim=1)
+        return onehot_to_label(F.softmax(pred_labels, dim=1))
     
     def fit(self, training_data, training_labels):
         """
@@ -331,13 +312,14 @@ class Trainer(object):
         """
         N, D = training_data.shape
         W = H = int(np.sqrt(D))
-        assert W * H == D
         if isinstance(self.model, CNN):
             # add number of channels
+            assert W * H == D
             training_data_reshaped = training_data.reshape(N, 1, W, H)
         elif isinstance(self.model, MLP):
             training_data_reshaped = training_data
         elif isinstance(self.model, MyViT):
+            assert W * H == D
             training_data_reshaped = training_data.reshape(N, 1, W, H)
 
         # transform target to one hot independently of the model
@@ -363,14 +345,15 @@ class Trainer(object):
         """
         N, D = test_data.shape
         W = H = int(np.sqrt(D))
-        assert W * H == D
         if isinstance(self.model, CNN):
             # add number of channels
+            assert W * H == D
             test_data = test_data.reshape(N, 1, W, H)
         elif isinstance(self.model, MLP):
             # nothing to be done input already has correct shape
             pass
         elif isinstance(self.model, MyViT):
+            assert W * H == D
             test_data = test_data.reshape(N, 1, W, H)
         # First, prepare data for pytorch
         test_dataset = TensorDataset(torch.from_numpy(test_data).float())
@@ -379,7 +362,7 @@ class Trainer(object):
         pred_labels = self.predict_torch(test_dataloader)
 
         # We return the labels after transforming them into numpy array.
-        return onehot_to_label(pred_labels.cpu().numpy())
+        return pred_labels.cpu().numpy()A&
     
 def patchify(images, n_patches):
     n, c, h, w = images.shape

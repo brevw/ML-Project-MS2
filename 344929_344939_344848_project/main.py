@@ -46,6 +46,9 @@ def main(args):
     if args.use_pca:
         print("Using PCA")
         pca_obj = PCA(d=args.pca_d)
+        print(f'The total variance explained by the first {args.pca_d} principal components is {pca_obj.find_principal_components(xtrain):.3f} %')
+        xtrain = pca_obj.reduce_dimension(xtrain)
+        xtest  = pca_obj.reduce_dimension(xtest)
         ### WRITE YOUR CODE HERE: use the PCA object to reduce the dimensionality of the data
 
 
