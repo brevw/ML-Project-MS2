@@ -8,7 +8,6 @@ from src.methods.pca import PCA
 from src.methods.deep_network import MLP, CNN, Trainer, MyViT
 from src.utils import normalize_fn, append_bias_term, accuracy_fn, macrof1_fn, get_n_classes
 
-
 def main(args):
     """
     The main function of the script. Do not hesitate to play with it
@@ -19,17 +18,27 @@ def main(args):
                           of this file). Their value can be accessed as "args.argument".
     """
     ## 1. First, we load our data and flatten the images into vectors
-    xtrain, xtest, ytrain = load_data(args.data_path)
+    xtrain, xtest, ytrain = load_data(args.data)
     xtrain = xtrain.reshape(xtrain.shape[0], -1)
     xtest = xtest.reshape(xtest.shape[0], -1)
-
+    print(ytrain.shape)
     ## 2. Then we must prepare it. This is were you can create a validation set,
     #  normalize, add bias, etc.
 
     # Make a validation set
     if not args.test:
-    ### WRITE YOUR CODE HERE
-        print("Using PCA")
+        N = xtrain.shape[0]
+        validation_size = int(N * 0.2)
+        rand_idx = np.random.permutation(N)
+        val_idx = rand_idx[:validation_size]
+        train_idx = rand_idx[validation_size:]
+        xtest = xtrain[val_idx,:]
+        ytest = ytrain[val_idx]
+        xtrain = xtrain[train_idx,:]
+        ytrain = ytrain[train_idx]
+        pass
+    
+        
 
     ### WRITE YOUR CODE HERE to do any other data processing
 
@@ -38,6 +47,11 @@ def main(args):
     if args.use_pca:
         print("Using PCA")
         pca_obj = PCA(d=args.pca_d)
+        xtrain = pca_obj.reduce_dimension(xtrain)
+        xtest = pca_obj.reduce_dimension(xtest)
+
+
+
         ### WRITE YOUR CODE HERE: use the PCA object to reduce the dimensionality of the data
 
 
@@ -48,8 +62,13 @@ def main(args):
     # Prepare the model (and data) for Pytorch
     # Note: you might need to reshape the data depending on the network you use!
     n_classes = get_n_classes(ytrain)
+    print(n_classes)
     if args.nn_type == "mlp":
-        model = ... ### WRITE YOUR CODE HERE
+        model = MLP(xtrain.shape[1], n_classes)
+    if args.nn_type == "cnn":
+        model = CNN(1, n_classes)
+    if args.nn_type == "transformer":
+        model = MyViT((1, 28, 28), 7, 2, 8, 2, n_classes)
 
     summary(model)
 
@@ -76,6 +95,8 @@ def main(args):
     acc = accuracy_fn(preds, xtest)
     macrof1 = macrof1_fn(preds, xtest)
     print(f"Validation set:  accuracy = {acc:.3f}% - F1-score = {macrof1:.6f}")
+
+
 
 
     ### WRITE YOUR CODE HERE if you want to add other outputs, visualization, etc.

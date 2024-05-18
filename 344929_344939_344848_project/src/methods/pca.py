@@ -38,11 +38,24 @@ class PCA(object):
         Returns:
             exvar (float): explained variance of the kept dimensions (in percentage, i.e., in [0,100])
         """
-        ##
-        ###
-        #### WRITE YOUR CODE HERE!
-        ###
-        ##
+        
+        self.mean = np.mean(training_data, axis = 0)
+        X_tilde = training_data - self.mean
+        # Create the covariance matrix
+        C = X_tilde.T@X_tilde/X_tilde.shape[0]
+        # Compute the eigenvectors and eigenvalues. Hint: use np.linalg.eigh
+        eigvals, eigvecs = np.linalg.eigh(C)
+        # Choose the top d eigenvalues and corresponding eigenvectors. Sort the eigenvalues( with corresponding eigenvectors )
+        # in decreasing order first.
+        eigvals = eigvals[::-1]
+        eigvecs = eigvecs[:, ::-1]
+
+        self.W = eigvecs[:, 0:self.d]
+        eg = eigvals[0:self.d]
+    
+        # Compute the explained variance
+        exvar = 100*eg.sum()/eigvals.sum()
+
         return exvar
 
     def reduce_dimension(self, data):
@@ -54,11 +67,7 @@ class PCA(object):
         Returns:
             data_reduced (array): reduced data of shape (N,d)
         """
-        ##
-        ###
-        #### WRITE YOUR CODE HERE!
-        ###
-        ##
+        data_reduced = (data-self.mean)@ self.W
         return data_reduced
         
 
