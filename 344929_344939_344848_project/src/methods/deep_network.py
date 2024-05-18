@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import TensorDataset, DataLoader
-from src.utils import *
+from src.utils import onehot_to_label, label_to_onehot
 PRINT_EACH = 100
 
 ## MS2
@@ -363,7 +363,7 @@ class Trainer(object):
                 output = self.model(batch[0])
                 pred_labels.append(output)
             pred_labels = torch.cat(pred_labels)
-        return F.softmax(pred_labels, dim = 1)
+        return onehot_to_label(F.softmax(pred_labels, dim = 1))
     
     def fit(self, training_data, training_labels):
         """
@@ -379,7 +379,6 @@ class Trainer(object):
         """
         N, D = training_data.shape
         W = H = int(np.sqrt(D))
-        assert W * H == D
         if isinstance(self.model, CNN):
             # add number of channels
             training_data_reshaped = training_data.reshape(N, 1, W, H)
@@ -387,6 +386,8 @@ class Trainer(object):
             training_data_reshaped = training_data
         elif isinstance(self.model, MyViT):
             training_data_reshaped = training_data.reshape(N, 1, W, H)
+        else:
+            training_data_reshaped = training_data
 
         # First, prepare data for pytorch
         train_dataset = TensorDataset(torch.from_numpy( training_data_reshaped).float(), 
@@ -411,7 +412,6 @@ class Trainer(object):
         # First, prepare data for pytorch
         N, D = test_data.shape
         W = H = int(np.sqrt(D))
-        assert W * H == D
         if isinstance(self.model, CNN):
             # add number of channels
             test_data = test_data.reshape(N, 1, W, H)
@@ -427,4 +427,4 @@ class Trainer(object):
         pred_labels = self.predict_torch(test_dataloader)
 
         # We return the labels after transforming them into numpy array.
-        return onehot_to_label(pred_labels.cpu().numpy())
+        return pred_labels.cpu().numpy()
