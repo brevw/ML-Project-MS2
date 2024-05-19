@@ -1,10 +1,11 @@
 import numpy as np
+import time
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import TensorDataset, DataLoader
 from src.utils import onehot_to_label, label_to_onehot
-PRINT_EACH = 100
+PRINT_EACH = 500
 
 ## MS2
 
@@ -28,13 +29,6 @@ class MLP(nn.Module):
             n_classes (int): number of classes to predict
         """
         super().__init__()
-        ##
-        ###
-        #### WRITE YOUR CODE HERE!
-        ###
-        ##
-        self.n_classes = n_classes
-        self.input_size = input_size
         self.mlp = nn.Sequential(
             # Linear block 1
             nn.Linear(input_size, 512      , bias=True),
@@ -46,7 +40,7 @@ class MLP(nn.Module):
             nn.Linear(256       , 128      , bias=True),
             nn.ReLU(),
             ## linear block 4
-            nn.Linear(128       , n_classes, bias=True)
+            nn.Linear(128      , n_classes, bias=True)
         )
 
     def forward(self, x):
@@ -61,6 +55,7 @@ class MLP(nn.Module):
         """
         
         preds = self.mlp(x)
+
         return preds
 
 
@@ -85,22 +80,28 @@ class CNN(nn.Module):
         super().__init__()
 
         self.cnn = nn.Sequential(
+            # Conv block 1 (-> output(6, 14 ,14))
             nn.Conv2d(input_channels, 6, 3, padding =1),
             nn.ReLU(),
             nn.MaxPool2d(2),
            
+            # Conv block 2 (-> output(16, 7 ,7))
             nn.Conv2d(6, 16, 3, padding =1),
             nn.ReLU(),
             nn.MaxPool2d(2),
 
+            # Flatten to a vector before feeding it to the mlp (-> output (7 * 7 * 16, ))
             nn.Flatten(-3),
 
+            # MLP block 1
             nn.Linear(7*7*16, 120, bias = True),
             nn.ReLU(),
 
+            # MLP block 2
             nn.Linear(120, 84, bias = True),
             nn.ReLU(),
 
+            # MLP block 3
             nn.Linear(84, n_classes, bias = True),
         )
 
@@ -116,6 +117,7 @@ class CNN(nn.Module):
                 Reminder: logits are value pre-softmax.
         """
         preds = self.cnn(x)
+
         return preds
 
 def patchify(images, n_patches):
@@ -310,7 +312,6 @@ class Trainer(object):
         for ep in range(self.epochs):
             self.train_one_epoch(dataloader, ep)
 
-            ### WRITE YOUR CODE HERE if you want to do add something else at each epoch
 
     def train_one_epoch(self, dataloader, ep):
         """
@@ -326,11 +327,14 @@ class Trainer(object):
         running_loss = 0
         for it, batch in enumerate(dataloader):
             images ,targets = batch
+
+            #fwd + bwd + optimize
             logits = self.model(images)
             loss = self.criterion(logits, targets.long())
             loss.backward()
             self.optimizer.step()
             running_loss += loss.item()
+            #zero gradients
             self.optimizer.zero_grad()
 
             if it % PRINT_EACH == PRINT_EACH-1:
@@ -414,13 +418,16 @@ class Trainer(object):
         W = H = int(np.sqrt(D))
         if isinstance(self.model, CNN):
             # add number of channels
+            assert W * H == D
             test_data = test_data.reshape(N, 1, W, H)
         elif isinstance(self.model, MLP):
             # nothing to be done input already has correct shape
             pass
         elif isinstance(self.model, MyViT):
+            assert W * H == D
             test_data = test_data.reshape(N, 1, W, H)
 
+        # First, prepare data for pytorch  
         test_dataset = TensorDataset(torch.from_numpy(test_data).float())
         test_dataloader = DataLoader(test_dataset, batch_size=self.batch_size, shuffle=False)
 

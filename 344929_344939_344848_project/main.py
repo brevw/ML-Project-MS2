@@ -21,7 +21,6 @@ def main(args):
     xtrain, xtest, ytrain = load_data(args.data)
     xtrain = xtrain.reshape(xtrain.shape[0], -1)
     xtest = xtest.reshape(xtest.shape[0], -1)
-    print(ytrain.shape)
     ## 2. Then we must prepare it. This is were you can create a validation set,
     #  normalize, add bias, etc.
 
@@ -47,6 +46,7 @@ def main(args):
     if args.use_pca:
         print("Using PCA")
         pca_obj = PCA(d=args.pca_d)
+        print(f'The total variance explained by the first {args.pca_d} principal components is {pca_obj.find_principal_components(xtrain):.3f} %')
         xtrain = pca_obj.reduce_dimension(xtrain)
         xtest = pca_obj.reduce_dimension(xtest)
 
@@ -62,14 +62,14 @@ def main(args):
     # Prepare the model (and data) for Pytorch
     # Note: you might need to reshape the data depending on the network you use!
     n_classes = get_n_classes(ytrain)
-    print(n_classes)
     if args.nn_type == "mlp":
         model = MLP(xtrain.shape[1], n_classes)
-    if args.nn_type == "cnn":
+    elif args.nn_type == "cnn":
         model = CNN(1, n_classes)
-    if args.nn_type == "transformer":
+    elif args.nn_type == "transformer":
         model = MyViT((1, 28, 28), 7, 2, 8, 2, n_classes)
-
+    else :
+        pass
     summary(model)
 
     # Trainer object
@@ -92,9 +92,10 @@ def main(args):
 
     ## As there are no test dataset labels, check your model accuracy on validation dataset.
     # You can check your model performance on test set by submitting your test set predictions on the AIcrowd competition.
-    acc = accuracy_fn(preds, xtest)
-    macrof1 = macrof1_fn(preds, xtest)
-    print(f"Validation set:  accuracy = {acc:.3f}% - F1-score = {macrof1:.6f}")
+    if not args.test:
+        acc = accuracy_fn(preds, ytest)
+        macrof1 = macrof1_fn(preds, ytest)
+        print(f"Validation set:  accuracy = {acc:.3f}% - F1-score = {macrof1:.6f}")
 
 
 
