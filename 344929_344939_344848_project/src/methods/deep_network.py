@@ -31,16 +31,16 @@ class MLP(nn.Module):
         super().__init__()
         self.mlp = nn.Sequential(
             # Linear block 1
-            nn.Linear(input_size, 512      , bias=True),
+            nn.Linear(input_size, 128      , bias=True),
             nn.ReLU(),
             # Linear block 2
-            nn.Linear(512       , 256      , bias=True),
+            nn.Linear(128       , 32      , bias=True),
             nn.ReLU(),
             #Linear block 3
-            nn.Linear(256       , 128      , bias=True),
+            nn.Linear(32       , 16      , bias=True),
             nn.ReLU(),
             ## linear block 4
-            nn.Linear(128      , n_classes, bias=True)
+            nn.Linear(16      , n_classes, bias=True)
         )
 
     def forward(self, x):
@@ -281,7 +281,7 @@ class Trainer(object):
     It will also serve as an interface between numpy and pytorch.
     """
 
-    def __init__(self, model, lr, epochs, batch_size):
+    def __init__(self, model, lr, epochs, batch_size, average_loss_list):
         """
         Initialize the trainer object for a given model.
 
@@ -295,6 +295,7 @@ class Trainer(object):
         self.epochs = epochs
         self.model = model
         self.batch_size = batch_size
+        self.average_loss_list = average_loss_list
 
         self.criterion = nn.CrossEntropyLoss()
         self.optimizer = torch.optim.SGD(model.parameters(), lr=lr) 
@@ -325,6 +326,10 @@ class Trainer(object):
         """
         self.model.train()
         running_loss = 0
+        # Used to add average of one epoch to the list for plotting
+        number_of_samples = 0
+        running_loss_on_epoch = 0
+        
         for it, batch in enumerate(dataloader):
             images ,targets = batch
 
@@ -334,13 +339,18 @@ class Trainer(object):
             loss.backward()
             self.optimizer.step()
             running_loss += loss.item()
+
+            # For plotting
+            running_loss_on_epoch += loss.item()
+            number_of_samples += 1
+
             #zero gradients
             self.optimizer.zero_grad()
 
             if it % PRINT_EACH == PRINT_EACH-1:
                 print(f"[{ep+1}, {it+1:5d}] average_loss: {running_loss/PRINT_EACH}")
                 running_loss = 0
-
+        self.average_loss_list.append(running_loss_on_epoch / number_of_samples)
 
 
     def predict_torch(self, dataloader):
