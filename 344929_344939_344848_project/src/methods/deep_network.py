@@ -31,16 +31,16 @@ class MLP(nn.Module):
         super().__init__()
         self.mlp = nn.Sequential(
             # Linear block 1
-            nn.Linear(input_size, 512      , bias=True),
+            nn.Linear(input_size, 128      , bias=True),
             nn.ReLU(),
             # Linear block 2
-            nn.Linear(512       , 256      , bias=True),
+            nn.Linear(128       , 32      , bias=True),
             nn.ReLU(),
             #Linear block 3
-            nn.Linear(256       , 128      , bias=True),
+            nn.Linear(32       , 16      , bias=True),
             nn.ReLU(),
             ## linear block 4
-            nn.Linear(128      , n_classes, bias=True)
+            nn.Linear(16      , n_classes, bias=True)
         )
 
     def forward(self, x):
