@@ -38,23 +38,24 @@ class PCA(object):
         Returns:
             exvar (float): explained variance of the kept dimensions (in percentage, i.e., in [0,100])
         """
-        
-        self.mean = np.mean(training_data, axis = 0)
-        X_tilde = training_data - self.mean
+        N = training_data.shape[0]
+        # Compute the mean of data
+        self.mean = np.mean(training_data, axis=0)
+        # Center the data with the mean
+        training_data_centered = training_data - self.mean
         # Create the covariance matrix
-        C = X_tilde.T@X_tilde/X_tilde.shape[0]
-        # Compute the eigenvectors and eigenvalues. Hint: use np.linalg.eigh
+        C = np.cov(training_data_centered, rowvar=False)
+        # Compute the eigenvectors and eigenvalues. Hint: look into np.linalg.eigh()
         eigvals, eigvecs = np.linalg.eigh(C)
-        # Choose the top d eigenvalues and corresponding eigenvectors. Sort the eigenvalues( with corresponding eigenvectors )
-        # in decreasing order first.
+        # Choose the top d eigenvalues and corresponding eigenvectors.
         eigvals = eigvals[::-1]
         eigvecs = eigvecs[:, ::-1]
 
-        self.W = eigvecs[:, 0:self.d]
-        eg = eigvals[0:self.d]
-    
+        self.W = eigvecs[:, :self.d]
+        eg = eigvals[:self.d]
+        
         # Compute the explained variance
-        exvar = 100*eg.sum()/eigvals.sum()
+        exvar = np.sum(eg) / np.sum(eigvals) * 100
 
         return exvar
 
@@ -67,7 +68,6 @@ class PCA(object):
         Returns:
             data_reduced (array): reduced data of shape (N,d)
         """
-        data_reduced = (data-self.mean)@ self.W
-        return data_reduced
-        
+        data_reduced = (data - self.mean) @ self.W
 
+        return data_reduced
