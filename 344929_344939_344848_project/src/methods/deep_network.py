@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import TensorDataset, DataLoader
 from src.utils import onehot_to_label, label_to_onehot
-PRINT_EACH = 500
+
 
 ## MS2
 
@@ -329,7 +329,8 @@ class Trainer(object):
         # Used to add average of one epoch to the list for plotting
         number_of_samples = 0
         running_loss_on_epoch = 0
-        
+        train_loss = 0.0
+        N_EPOCHS = self.epochs
         for it, batch in enumerate(dataloader):
             images ,targets = batch
 
@@ -338,18 +339,17 @@ class Trainer(object):
             loss = self.criterion(logits, targets.long())
             loss.backward()
             self.optimizer.step()
-            running_loss += loss.item()
+            train_loss += loss.detach().cpu().item() / len(dataloader)
 
             # For plotting
+            
             running_loss_on_epoch += loss.item()
             number_of_samples += 1
 
             #zero gradients
             self.optimizer.zero_grad()
 
-            if it % PRINT_EACH == PRINT_EACH-1:
-                print(f"[{ep+1}, {it+1:5d}] average_loss: {running_loss/PRINT_EACH}")
-                running_loss = 0
+        print(f"Epoch {ep + 1}/{N_EPOCHS} loss: {train_loss:.2f}")
         self.average_loss_list.append(running_loss_on_epoch / number_of_samples)
 
 
@@ -391,20 +391,8 @@ class Trainer(object):
         Returns:
             pred_labels (array): target of shape (N,)
         """
-        N, D = training_data.shape
-        W = H = int(np.sqrt(D))
-        if isinstance(self.model, CNN):
-            # add number of channels
-            training_data_reshaped = training_data.reshape(N, 1, W, H)
-        elif isinstance(self.model, MLP):
-            training_data_reshaped = training_data
-        elif isinstance(self.model, MyViT):
-            training_data_reshaped = training_data.reshape(N, 1, W, H)
-        else:
-            training_data_reshaped = training_data
-
         # First, prepare data for pytorch
-        train_dataset = TensorDataset(torch.from_numpy( training_data_reshaped).float(), 
+        train_dataset = TensorDataset(torch.from_numpy( training_data).float(), 
                                       torch.from_numpy(training_labels))
         train_dataloader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
         
@@ -423,20 +411,6 @@ class Trainer(object):
         Returns:
             pred_labels (array): labels of shape (N,)
         """
-        # First, prepare data for pytorch
-        N, D = test_data.shape
-        W = H = int(np.sqrt(D))
-        if isinstance(self.model, CNN):
-            # add number of channels
-            assert W * H == D
-            test_data = test_data.reshape(N, 1, W, H)
-        elif isinstance(self.model, MLP):
-            # nothing to be done input already has correct shape
-            pass
-        elif isinstance(self.model, MyViT):
-            assert W * H == D
-            test_data = test_data.reshape(N, 1, W, H)
-
         # First, prepare data for pytorch  
         test_dataset = TensorDataset(torch.from_numpy(test_data).float())
         test_dataloader = DataLoader(test_dataset, batch_size=self.batch_size, shuffle=False)

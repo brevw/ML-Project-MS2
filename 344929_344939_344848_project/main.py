@@ -113,7 +113,7 @@ def main(args):
 
     if args.plotMLP_lr:
         n_classes = get_n_classes(ytrain)
-        args.lr = 1e-3
+        args.lr = 1e-4
         # with pca
         print("Using PCA")
         pca_obj = PCA(d=args.pca_d)
@@ -135,7 +135,7 @@ def main(args):
         macrof1_1 = macrof1_fn(preds, ytest)
         print(f"Validation set :  accuracy = {acc_1:.3f}% - F1-score = {macrof1_1:.6f}")
 
-        args.lr = 1e-4
+        args.lr = 1e-3
         model = MLP(xtrain.shape[1], n_classes)
         average_loss_epoch_list_with_pca = []
         method_obj = Trainer(model, lr=args.lr, epochs=args.max_iters, batch_size=args.nn_batch_size, average_loss_list=average_loss_epoch_list_with_pca)
@@ -153,10 +153,10 @@ def main(args):
         # plotting
         nbr_epoc = np.arange(1, args.max_iters + 1)
         plt.figure()
-        plt.title("Performance analysis with PCA with different lr")
+        plt.title("Performance analysis on MLP with PCA on different lr")
         skip_factor = 5
-        plt.plot(nbr_epoc[::skip_factor], average_loss_epoch_list_without_pca[::skip_factor], 'ro-' , label = f"lr = 1e-3 : Time running {train_stop_1 - train_start_1:.2f} - acc: {acc_1:.2f} - f1: {macrof1_1:.2f}")
-        plt.plot(nbr_epoc[::skip_factor], average_loss_epoch_list_with_pca[::skip_factor], 'bo-', label = f"lr = 1e-4 : Time running {train_stop_2 - train_start_2:.2f} - acc: {acc_2:.2f} - f1: {macrof1_2:.2f}")
+        plt.plot(nbr_epoc[::skip_factor], average_loss_epoch_list_without_pca[::skip_factor], 'ro-' , label = f"lr = 1e-4 : Time running {train_stop_1 - train_start_1:.2f} - acc: {acc_1:.2f} - f1: {macrof1_1:.2f}")
+        plt.plot(nbr_epoc[::skip_factor], average_loss_epoch_list_with_pca[::skip_factor], 'bo-', label = f"lr = 1e-3 : Time running {train_stop_2 - train_start_2:.2f} - acc: {acc_2:.2f} - f1: {macrof1_2:.2f}")
         plt.ylabel("average loss")
         plt.xlabel("epoch")
         plt.legend()
@@ -164,6 +164,10 @@ def main(args):
         exit(0)
 
     if args.plotCNN_lr:
+        N, D = xtrain.shape
+        W = H = int(np.sqrt(D))
+        xtrain = xtrain.reshape((N, 1, W, H))
+        xtest = xtest.reshape((xtest.shape[0], 1, W, H))
         n_classes = get_n_classes(ytrain)
 
         # lr = 1e-4, batch_size = 64
@@ -204,7 +208,7 @@ def main(args):
         nbr_epoc = np.arange(1, args.max_iters + 1)
         plt.figure()
         plt.title("Performance analysis on CNN by tuning lr")
-        skip_factor = 5
+        skip_factor = 1
         plt.plot(nbr_epoc[::skip_factor], average_loss_epoch_list_1[::skip_factor], 'ro-' , label = f"lr = 1e-4: Time running {train_stop_1 - train_start_1:.2f} - acc: {acc_1:.2f} - f1: {macrof1_1:.2f}")
         plt.plot(nbr_epoc[::skip_factor], average_loss_epoch_list_2[::skip_factor], 'bo-', label = f"lr = 1e-3: Time running {train_stop_2 - train_start_2:.2f} - acc: {acc_2:.2f} - f1: {macrof1_2:.2f}")
         plt.ylabel("average loss")
@@ -214,10 +218,14 @@ def main(args):
         exit(0)
 
     if args.plotTRANSFORMER_lr:
+        N, D = xtrain.shape
+        W = H = int(np.sqrt(D))
+        xtrain = xtrain.reshape((N, 1, W, H))
+        xtest = xtest.reshape((xtest.shape[0], 1, W, H))
         n_classes = get_n_classes(ytrain)
 
-        # lr = 1e-4
-        args.lr = 1e-4
+        # lr = 0.2
+        args.lr = 0.005
         
         model = MyViT((1, 28, 28), 7, 2, 8, 2, n_classes)
         average_loss_epoch_list_1 = []
@@ -233,8 +241,8 @@ def main(args):
         macrof1_1 = macrof1_fn(preds, ytest)
         print(f"Validation set without pca:  accuracy = {acc_1:.3f}% - F1-score = {macrof1_1:.6f}")
 
-        # lr = 1e-3 
-        args.lr = 1e-3
+        # lr = 0.1
+        args.lr = 0.01
 
         model = MyViT((1, 28, 28), 7, 2, 8, 2, n_classes)
         average_loss_epoch_list_2 = []
@@ -255,8 +263,8 @@ def main(args):
         plt.figure()
         plt.title("Performance analysis on Transformer model by tuning lr")
         skip_factor = 5
-        plt.plot(nbr_epoc[::skip_factor], average_loss_epoch_list_1[::skip_factor], 'ro-' , label = f"w/ lr = 1e-4: Time running {train_stop_1 - train_start_1:.2f} - acc: {acc_1:.2f} - f1: {macrof1_1:.2f}")
-        plt.plot(nbr_epoc[::skip_factor], average_loss_epoch_list_2[::skip_factor], 'bo-', label = f"w/ lr = 1e-3: Time running {train_stop_2 - train_start_2:.2f} - acc: {acc_2:.2f} - f1: {macrof1_2:.2f}")
+        plt.plot(nbr_epoc[::skip_factor], average_loss_epoch_list_1[::skip_factor], 'ro-' , label = f"w/ lr = 0.2: Time running {train_stop_1 - train_start_1:.2f} - acc: {acc_1:.2f} - f1: {macrof1_1:.2f}")
+        plt.plot(nbr_epoc[::skip_factor], average_loss_epoch_list_2[::skip_factor], 'bo-', label = f"w/ lr = 0.1: Time running {train_stop_2 - train_start_2:.2f} - acc: {acc_2:.2f} - f1: {macrof1_2:.2f}")
         plt.ylabel("average loss")
         plt.xlabel("epoch")
         plt.legend()
@@ -269,17 +277,23 @@ def main(args):
 
     # Prepare the model (and data) for Pytorch
     # Note: you might need to reshape the data depending on the network you use!
+    N, D = xtrain.shape
+    W = H = int(np.sqrt(D))
     n_classes = get_n_classes(ytrain)
     if args.nn_type == "mlp":
         model = MLP(xtrain.shape[1], n_classes)
     elif args.nn_type == "cnn":
         model = CNN(1, n_classes)
+        xtrain = xtrain.reshape((N, 1, W, H))
+        xtest = xtest.reshape((xtest.shape[0], 1, W, H))
     elif args.nn_type == "transformer":
         model = MyViT((1, 28, 28), 7, 2, 8, 2, n_classes)
+        xtrain = xtrain.reshape((N, 1, W, H))
+        xtest = xtest.reshape((xtest.shape[0], 1, W, H))
     else :
         model = DummyClassifier(0) 
     summary(model)
-
+     
     # Trainer object
     average_loss_epoch_list = []
     method_obj = Trainer(model, lr=args.lr, epochs=args.max_iters, batch_size=args.nn_batch_size, average_loss_list=average_loss_epoch_list)
