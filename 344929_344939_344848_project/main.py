@@ -262,9 +262,9 @@ def main(args):
         nbr_epoc = np.arange(1, args.max_iters + 1)
         plt.figure()
         plt.title("Performance analysis on Transformer model by tuning lr")
-        skip_factor = 5
-        plt.plot(nbr_epoc[::skip_factor], average_loss_epoch_list_1[::skip_factor], 'ro-' , label = f"w/ lr = 1e-4: Time running {train_stop_1 - train_start_1:.2f} - acc: {acc_1:.2f} - f1: {macrof1_1:.2f}")
-        plt.plot(nbr_epoc[::skip_factor], average_loss_epoch_list_2[::skip_factor], 'bo-', label = f"w/ lr = 1e-3: Time running {train_stop_2 - train_start_2:.2f} - acc: {acc_2:.2f} - f1: {macrof1_2:.2f}")
+        skip_factor = 1
+        plt.plot(nbr_epoc[::skip_factor], average_loss_epoch_list_1[::skip_factor], 'ro-' , label = f"w/ lr = 1e-4: acc: {acc_1:.2f} - f1: {macrof1_1:.2f}")
+        plt.plot(nbr_epoc[::skip_factor], average_loss_epoch_list_2[::skip_factor], 'bo-', label = f"w/ lr = 1e-3: acc: {acc_2:.2f} - f1: {macrof1_2:.2f}")
         plt.ylabel("average loss")
         plt.xlabel("epoch")
         plt.legend()
