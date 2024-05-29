@@ -298,7 +298,7 @@ class Trainer(object):
         self.average_loss_list = average_loss_list
 
         self.criterion = nn.CrossEntropyLoss()
-        self.optimizer = torch.optim.SGD(model.parameters(), lr=lr) 
+        self.optimizer = torch.optim.Adam(model.parameters(), lr=lr) 
 
     def train_all(self, dataloader):
         """

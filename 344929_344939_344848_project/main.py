@@ -287,7 +287,7 @@ def main(args):
         xtrain = xtrain.reshape((N, 1, W, H))
         xtest = xtest.reshape((xtest.shape[0], 1, W, H))
     elif args.nn_type == "transformer":
-        model = MyViT((1, 28, 28), 7, 2, 8, 2, n_classes)
+        model = MyViT((1, 28, 28), 7, 4, 16, 4, n_classes)
         xtrain = xtrain.reshape((N, 1, W, H))
         xtest = xtest.reshape((xtest.shape[0], 1, W, H))
     else :
