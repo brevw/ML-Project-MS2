@@ -3,6 +3,7 @@ import time
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torchvision.transforms as transforms
 from torch.utils.data import TensorDataset, DataLoader
 from src.utils import onehot_to_label, label_to_onehot
 
@@ -80,29 +81,24 @@ class CNN(nn.Module):
         super().__init__()
 
         self.cnn = nn.Sequential(
-            # Conv block 1 (-> output(6, 14 ,14))
-            nn.Conv2d(input_channels, 6, 3, padding =1),
+            nn.Conv2d(input_channels, 32, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.MaxPool2d(2),
-           
-            # Conv block 2 (-> output(16, 7 ,7))
-            nn.Conv2d(6, 16, 3, padding =1),
+            nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
+            nn.Dropout(0.3),
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.MaxPool2d(2),
-
-            # Flatten to a vector before feeding it to the mlp (-> output (7 * 7 * 16, ))
-            nn.Flatten(-3),
-
-            # MLP block 1
-            nn.Linear(7*7*16, 120, bias = True),
+            nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
+            nn.Dropout(0.3),
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
             nn.ReLU(),
-
-            # MLP block 2
-            nn.Linear(120, 84, bias = True),
+            nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
+            nn.Flatten(),
+            nn.Linear(128 * 3 * 3, 256),
             nn.ReLU(),
-
-            # MLP block 3
-            nn.Linear(84, n_classes, bias = True),
+            nn.Dropout(0.5),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, n_classes)
         )
 
 
@@ -125,21 +121,22 @@ def patchify(images, n_patches):
 
     assert h == w, "Patchify method is implemented for square images only"
 
-    patches = torch.zeros(n, n_patches ** 2, h * w * c // n_patches ** 2)
     patch_size = h // n_patches
 
-    for idx, image in enumerate(images):
-        for i in range(n_patches):
-            for j in range(n_patches):
-                patch = image[:, i * patch_size: (i + 1) * patch_size, j * patch_size: (j + 1) * patch_size]
-                patches[idx, i * n_patches + j] = patch.flatten()
+    # Unfold the image into patches
+    patches = images.unfold(2, patch_size, patch_size).unfold(3, patch_size, patch_size)
+    patches = patches.permute(0, 2, 3, 1, 4, 5).reshape(n, n_patches**2, -1)
+
     return patches
 def get_positional_embeddings(sequence_length, d):
-    result = torch.ones(sequence_length, d)
-    for i in range(sequence_length):
-        for j in range(d):
-            result[i][j] = np.sin(i / (10000 ** (j / d))) if j % 2 == 0 else np.cos(i / (10000 ** ((j - 1) / d)))
-    return result
+    position = torch.arange(sequence_length, dtype=torch.float).unsqueeze(1)
+    div_term = torch.exp(torch.arange(0, d, 2).float() * (-torch.log(torch.tensor(10000.0)) / d))
+    
+    pos_emb = torch.zeros(sequence_length, d)
+    pos_emb[:, 0::2] = torch.sin(position * div_term)
+    pos_emb[:, 1::2] = torch.cos(position * div_term)
+    
+    return pos_emb
 class MyMSA(nn.Module):
     def __init__(self, d, n_heads=2):
         super(MyMSA, self).__init__()
@@ -148,32 +145,44 @@ class MyMSA(nn.Module):
 
         assert d % n_heads == 0, f"Can't divide dimension {d} into {n_heads} heads"
 
-        d_head = int(d / n_heads)
-        self.q_mappings = nn.ModuleList([nn.Linear(d_head, d_head) for _ in range(self.n_heads)])
-        self.k_mappings = nn.ModuleList([nn.Linear(d_head, d_head) for _ in range(self.n_heads)])
-        self.v_mappings = nn.ModuleList([nn.Linear(d_head, d_head) for _ in range(self.n_heads)])
-        self.d_head = d_head
+        self.d_head = d // n_heads
+
+        # Linear layers for Q, K, V transformations
+        self.q_mappings = nn.Linear(d, d)
+        self.k_mappings = nn.Linear(d, d)
+        self.v_mappings = nn.Linear(d, d)
+
+        # Output linear layer
+        self.output_linear = nn.Linear(d, d)
+
+        # Softmax layer
         self.softmax = nn.Softmax(dim=-1)
 
     def forward(self, sequences):
-        # Sequences has shape (N, seq_length, token_dim)
-        # We go into shape    (N, seq_length, n_heads, token_dim / n_heads)
-        # And come back to    (N, seq_length, item_dim)  (through concatenation)
-        result = []
-        for sequence in sequences:
-            seq_result = []
-            for head in range(self.n_heads):
-                q_mapping = self.q_mappings[head]
-                k_mapping = self.k_mappings[head]
-                v_mapping = self.v_mappings[head]
+        # Sequences shape: (N, seq_length, token_dim)
+        N, seq_length, token_dim = sequences.shape
 
-                seq = sequence[:, head * self.d_head: (head + 1) * self.d_head]
-                q, k, v = q_mapping(seq), k_mapping(seq), v_mapping(seq)
+        # Linear projections
+        Q = self.q_mappings(sequences)
+        K = self.k_mappings(sequences)
+        V = self.v_mappings(sequences)
 
-                attention = self.softmax(q @ k.T / (self.d_head ** 0.5))
-                seq_result.append(attention @ v)
-            result.append(torch.hstack(seq_result))
-        return torch.cat([torch.unsqueeze(r, dim=0) for r in result])
+        # Reshape for multi-head attention (N, seq_length, n_heads, d_head)
+        Q = Q.view(N, seq_length, self.n_heads, self.d_head).transpose(1, 2)
+        K = K.view(N, seq_length, self.n_heads, self.d_head).transpose(1, 2)
+        V = V.view(N, seq_length, self.n_heads, self.d_head).transpose(1, 2)
+
+        # Scaled dot-product attention
+        attention_scores = torch.matmul(Q, K.transpose(-2, -1)) / (self.d_head ** 0.5)
+        attention_weights = self.softmax(attention_scores)
+        attention_output = torch.matmul(attention_weights, V)
+
+        # Concatenate heads and apply final linear layer
+        attention_output = attention_output.transpose(1, 2).contiguous().view(N, seq_length, self.d)
+        output = self.output_linear(attention_output)
+
+        return output
+
 class MyViTBlock(nn.Module):
     def __init__(self, hidden_d, n_heads, mlp_ratio=4):
         super(MyViTBlock, self).__init__()
@@ -185,8 +194,10 @@ class MyViTBlock(nn.Module):
         self.norm2 = nn.LayerNorm(hidden_d)
         self.mlp = nn.Sequential(
             nn.Linear(hidden_d, mlp_ratio * hidden_d),
+            nn.Dropout(0.1),
             nn.GELU(),
-            nn.Linear(mlp_ratio * hidden_d, hidden_d)
+            nn.Linear(mlp_ratio * hidden_d, hidden_d),
+            nn.Dropout(0.1)
         )
 
     def forward(self, x):
@@ -214,7 +225,7 @@ class MyViT(nn.Module):
         # Input and patches sizes
         assert chw[1] % n_patches == 0 # Input shape must be divisible by number of patches
         assert chw[2] % n_patches == 0
-        self.patch_size = (chw[1] // n_patches, chw[2] // n_patches) ### WRITE YOUR CODE HERE patch size in terms of height and width
+        self.patch_size = (chw[1] // n_patches, chw[2] // n_patches) ### patch size in terms of height and width
 
         # Linear mapper
         self.input_d = int(chw[0] * self.patch_size[0] * self.patch_size[1])
@@ -224,7 +235,6 @@ class MyViT(nn.Module):
         self.class_token = nn.Parameter(torch.rand(1, self.hidden_d))
 
         # Positional embedding
-        # HINT: don't forget the classification token
         self.positional_embeddings =  get_positional_embeddings(n_patches **2 +1 ,hidden_d)
 
         # Transformer blocks
@@ -249,7 +259,7 @@ class MyViT(nn.Module):
         n, c, h, w = x.shape
 
         # Divide images into patches.
-        patches = patchify(x, self.n_patches)### WRITE YOUR CODE HERE
+        patches = patchify(x, self.n_patches)
 
         # Map the vector corresponding to each patch to the hidden size dimension.
         tokens = self.linear_mapper(patches)
@@ -258,7 +268,6 @@ class MyViT(nn.Module):
         tokens = torch.cat((self.class_token.expand(n, 1, -1), tokens), dim=1)
 
         # Add positional embedding.
-        # HINT: use torch.Tensor.repeat(...)
         preds = tokens + self.positional_embeddings.repeat(n,1,1)
 
         # Transformer Blocks
@@ -272,6 +281,18 @@ class MyViT(nn.Module):
         preds = self.mlp(preds)
 
         return preds
+
+class CustomWarmupScheduler(torch.optim.lr_scheduler._LRScheduler):
+    def __init__(self, optimizer, warmup_steps, total_steps, last_epoch=-1):
+        self.warmup_steps = warmup_steps
+        self.total_steps = total_steps
+        super(CustomWarmupScheduler, self).__init__(optimizer, last_epoch)
+
+    def get_lr(self):
+        current_step = self.last_epoch + 1
+        if current_step < self.warmup_steps:
+            return [base_lr * (current_step / self.warmup_steps) for base_lr in self.base_lrs]
+        return [base_lr * (self.total_steps - current_step) / (self.total_steps - self.warmup_steps) for base_lr in self.base_lrs]
 
 
 class Trainer(object):
@@ -298,7 +319,12 @@ class Trainer(object):
         self.average_loss_list = average_loss_list
 
         self.criterion = nn.CrossEntropyLoss()
-        self.optimizer = torch.optim.SGD(model.parameters(), lr=lr) 
+        self.optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=0.01) 
+
+        num_training_steps = epochs * 60000 // batch_size
+        self.num_warmup_steps = int(0.1 * num_training_steps)
+        self.scheduler = CustomWarmupScheduler(self.optimizer, warmup_steps=self.num_warmup_steps, total_steps=num_training_steps)
+
 
     def train_all(self, dataloader):
         """
@@ -339,6 +365,7 @@ class Trainer(object):
             loss = self.criterion(logits, targets.long())
             loss.backward()
             self.optimizer.step()
+            self.scheduler.step()
             train_loss += loss.detach().cpu().item() / len(dataloader)
 
             # For plotting
@@ -392,7 +419,7 @@ class Trainer(object):
             pred_labels (array): target of shape (N,)
         """
         # First, prepare data for pytorch
-        train_dataset = TensorDataset(torch.from_numpy( training_data).float(), 
+        train_dataset = TensorDataset(transforms.Normalize((0.5,), (0.5,))(torch.from_numpy( training_data).float()), 
                                       torch.from_numpy(training_labels))
         train_dataloader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
         
@@ -412,7 +439,7 @@ class Trainer(object):
             pred_labels (array): labels of shape (N,)
         """
         # First, prepare data for pytorch  
-        test_dataset = TensorDataset(torch.from_numpy(test_data).float())
+        test_dataset = TensorDataset(transforms.Normalize((0.5,), (0.5,))(torch.from_numpy(test_data).float()))
         test_dataloader = DataLoader(test_dataset, batch_size=self.batch_size, shuffle=False)
 
         pred_labels = self.predict_torch(test_dataloader)

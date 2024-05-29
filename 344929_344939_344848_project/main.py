@@ -54,9 +54,6 @@ def main(args):
         xtest = pca_obj.reduce_dimension(xtest)
 
 
-
-        ### WRITE YOUR CODE HERE: use the PCA object to reduce the dimensionality of the data
-
     # plotting functions
     if args.plotMLP_pca:
         n_classes = get_n_classes(ytrain)
@@ -227,7 +224,7 @@ def main(args):
         # lr = 0.2
         args.lr = 0.005
         
-        model = MyViT((1, 28, 28), 7, 2, 8, 2, n_classes)
+        model = MyViT((1, 28, 28), 7, 2, 8, 4, n_classes)
         average_loss_epoch_list_1 = []
         method_obj = Trainer(model, lr=args.lr, epochs=args.max_iters, batch_size=args.nn_batch_size, average_loss_list=average_loss_epoch_list_1)
         train_start_1 = time.time()
@@ -287,7 +284,7 @@ def main(args):
         xtrain = xtrain.reshape((N, 1, W, H))
         xtest = xtest.reshape((xtest.shape[0], 1, W, H))
     elif args.nn_type == "transformer":
-        model = MyViT((1, 28, 28), 7, 2, 8, 2, n_classes)
+        model = MyViT((1, 28, 28), 4, 6, 256, 8, n_classes)
         xtrain = xtrain.reshape((N, 1, W, H))
         xtest = xtest.reshape((xtest.shape[0], 1, W, H))
     else :
@@ -306,6 +303,7 @@ def main(args):
 
     # Predict on unseen data
     preds = method_obj.predict(xtest)
+    np.save("predictions", preds)
 
     ## Report results: performance on train and valid/test sets
     acc = accuracy_fn(preds_train, ytrain)
