@@ -222,9 +222,9 @@ def main(args):
         n_classes = get_n_classes(ytrain)
 
         # lr = 0.2
-        args.lr = 0.005
+        args.lr = 0.0001
         
-        model = MyViT((1, 28, 28), 7, 2, 8, 4, n_classes)
+        model = MyViT((1, 28, 28), 7, 4, 16, 2, n_classes)
         average_loss_epoch_list_1 = []
         method_obj = Trainer(model, lr=args.lr, epochs=args.max_iters, batch_size=args.nn_batch_size, average_loss_list=average_loss_epoch_list_1)
         train_start_1 = time.time()
@@ -239,9 +239,9 @@ def main(args):
         print(f"Validation set without pca:  accuracy = {acc_1:.3f}% - F1-score = {macrof1_1:.6f}")
 
         # lr = 0.1
-        args.lr = 0.01
+        args.lr = 0.001
 
-        model = MyViT((1, 28, 28), 7, 2, 8, 2, n_classes)
+        model = MyViT((1, 28, 28), 7, 4, 16, 2, n_classes)
         average_loss_epoch_list_2 = []
         method_obj = Trainer(model, lr=args.lr, epochs=args.max_iters, batch_size=args.nn_batch_size, average_loss_list=average_loss_epoch_list_2)
         train_start_2 = time.time()
@@ -259,9 +259,9 @@ def main(args):
         nbr_epoc = np.arange(1, args.max_iters + 1)
         plt.figure()
         plt.title("Performance analysis on Transformer model by tuning lr")
-        skip_factor = 5
-        plt.plot(nbr_epoc[::skip_factor], average_loss_epoch_list_1[::skip_factor], 'ro-' , label = f"w/ lr = 0.2: Time running {train_stop_1 - train_start_1:.2f} - acc: {acc_1:.2f} - f1: {macrof1_1:.2f}")
-        plt.plot(nbr_epoc[::skip_factor], average_loss_epoch_list_2[::skip_factor], 'bo-', label = f"w/ lr = 0.1: Time running {train_stop_2 - train_start_2:.2f} - acc: {acc_2:.2f} - f1: {macrof1_2:.2f}")
+        skip_factor = 1
+        plt.plot(nbr_epoc[::skip_factor], average_loss_epoch_list_1[::skip_factor], 'ro-' , label = f"w/ lr = 1e-4: acc: {acc_1:.2f} - f1: {macrof1_1:.2f}")
+        plt.plot(nbr_epoc[::skip_factor], average_loss_epoch_list_2[::skip_factor], 'bo-', label = f"w/ lr = 1e-3: acc: {acc_2:.2f} - f1: {macrof1_2:.2f}")
         plt.ylabel("average loss")
         plt.xlabel("epoch")
         plt.legend()
@@ -284,7 +284,7 @@ def main(args):
         xtrain = xtrain.reshape((N, 1, W, H))
         xtest = xtest.reshape((xtest.shape[0], 1, W, H))
     elif args.nn_type == "transformer":
-        model = MyViT((1, 28, 28), 4, 6, 256, 8, n_classes)
+        model = MyViT((1, 28, 28), 7, 4, 16, 4, n_classes)
         xtrain = xtrain.reshape((N, 1, W, H))
         xtest = xtest.reshape((xtest.shape[0], 1, W, H))
     else :
@@ -303,7 +303,7 @@ def main(args):
 
     # Predict on unseen data
     preds = method_obj.predict(xtest)
-    np.save("predictions", preds)
+    np.save("predictions", preds) 
 
     ## Report results: performance on train and valid/test sets
     acc = accuracy_fn(preds_train, ytrain)
