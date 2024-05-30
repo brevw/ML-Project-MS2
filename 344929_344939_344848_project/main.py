@@ -111,12 +111,6 @@ def main(args):
     if args.plotMLP_lr:
         n_classes = get_n_classes(ytrain)
         args.lr = 1e-4
-        # with pca
-        print("Using PCA")
-        pca_obj = PCA(d=args.pca_d)
-        print(f'The total variance explained by the first {args.pca_d} principal components is {pca_obj.find_principal_components(xtrain):.3f} %')
-        xtrain = pca_obj.reduce_dimension(xtrain)
-        xtest = pca_obj.reduce_dimension(xtest)
 
         model = MLP(xtrain.shape[1], n_classes)
         average_loss_epoch_list_without_pca = []
@@ -142,15 +136,15 @@ def main(args):
         preds = method_obj.predict(xtest)
         acc = accuracy_fn(preds_train, ytrain)
         macrof1 = macrof1_fn(preds_train, ytrain)
-        print(f"\nTrain set with: accuracy = {acc:.3f}% - F1-score = {macrof1:.6f}")
+        print(f"\nTrain set: accuracy = {acc:.3f}% - F1-score = {macrof1:.6f}")
         acc_2 = accuracy_fn(preds, ytest)
         macrof1_2 = macrof1_fn(preds, ytest)
-        print(f"Validation set with pca:  accuracy = {acc_2:.3f}% - F1-score = {macrof1_2:.6f}")
+        print(f"Validation set:  accuracy = {acc_2:.3f}% - F1-score = {macrof1_2:.6f}")
 
         # plotting
         nbr_epoc = np.arange(1, args.max_iters + 1)
         plt.figure()
-        plt.title("Performance analysis on MLP with PCA on different lr")
+        plt.title("Performance analysis on MLP on different lr")
         skip_factor = 5
         plt.plot(nbr_epoc[::skip_factor], average_loss_epoch_list_without_pca[::skip_factor], 'ro-' , label = f"lr = 1e-4 : Time running {train_stop_1 - train_start_1:.2f} - acc: {acc_1:.2f} - f1: {macrof1_1:.2f}")
         plt.plot(nbr_epoc[::skip_factor], average_loss_epoch_list_with_pca[::skip_factor], 'bo-', label = f"lr = 1e-3 : Time running {train_stop_2 - train_start_2:.2f} - acc: {acc_2:.2f} - f1: {macrof1_2:.2f}")
@@ -284,7 +278,7 @@ def main(args):
         xtrain = xtrain.reshape((N, 1, W, H))
         xtest = xtest.reshape((xtest.shape[0], 1, W, H))
     elif args.nn_type == "transformer":
-        model = MyViT((1, 28, 28), 7, 4, 16, 4, n_classes)
+        model = MyViT((1, 28, 28), 7, 4, 16, 2, n_classes)
         xtrain = xtrain.reshape((N, 1, W, H))
         xtest = xtest.reshape((xtest.shape[0], 1, W, H))
     else :
