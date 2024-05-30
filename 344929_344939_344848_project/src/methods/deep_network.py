@@ -3,7 +3,6 @@ import time
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torchvision.transforms as transforms
 from torch.utils.data import TensorDataset, DataLoader
 from src.utils import onehot_to_label, label_to_onehot
 
@@ -81,23 +80,42 @@ class CNN(nn.Module):
         super().__init__()
 
         self.cnn = nn.Sequential(
+            # (1, 28, 28) -> (32, 14, 14)
             nn.Conv2d(input_channels, 32, kernel_size=3, padding=1),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
+
+            # Drop rate
             nn.Dropout(0.3),
+
+            # (32, 14, 14) -> (64, 7, 7)
             nn.Conv2d(32, 64, kernel_size=3, padding=1),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
+
+            # Dropout rate
             nn.Dropout(0.3),
+
+            # (64, 7, 7) -> (128, 3, 3)
             nn.Conv2d(64, 128, kernel_size=3, padding=1),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
-            nn.Flatten(),
+
+            # flatten the array
+            nn.Flatten(-3),
+
+            # MLP Block 1
             nn.Linear(128 * 3 * 3, 256),
             nn.ReLU(),
+
+            # drop rate
             nn.Dropout(0.5),
+            
+            # MLP Block 2
             nn.Linear(256, 128),
             nn.ReLU(),
+
+            # Output
             nn.Linear(128, n_classes)
         )
 
@@ -419,7 +437,7 @@ class Trainer(object):
             pred_labels (array): target of shape (N,)
         """
         # First, prepare data for pytorch
-        train_dataset = TensorDataset(transforms.Normalize((0.5,), (0.5,))(torch.from_numpy( training_data).float()), 
+        train_dataset = TensorDataset(torch.from_numpy( training_data).float(),
                                       torch.from_numpy(training_labels))
         train_dataloader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
         
@@ -439,7 +457,7 @@ class Trainer(object):
             pred_labels (array): labels of shape (N,)
         """
         # First, prepare data for pytorch  
-        test_dataset = TensorDataset(transforms.Normalize((0.5,), (0.5,))(torch.from_numpy(test_data).float()))
+        test_dataset = TensorDataset(torch.from_numpy(test_data).float())
         test_dataloader = DataLoader(test_dataset, batch_size=self.batch_size, shuffle=False)
 
         pred_labels = self.predict_torch(test_dataloader)
