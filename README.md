@@ -16,7 +16,7 @@ For a detailed walkthrough, check the [report.pdf](report.pdf) file.
 
 ## Data Preparation
 
-To get started, you need to download the dataset features from the following link: [MNIST Fashion Dataset](https://drive.google.com/drive/folders/1Ns6g0Gajm1-ZXLHeJIifCXVbcmNGznQI?usp=sharing). Once downloaded, move it to this project folder.
+To get started, you need to download the dataset features from the following link: [MNIST Fashion Dataset](https://drive.google.com/drive/folders/1Ns6g0Gajm1-ZXLHeJIifCXVbcmNGznQI?usp=sharing). Once downloaded, move the folder called `dataset` inside this project folder.
 
 ## Performance Comparisons
 
