@@ -12,6 +12,8 @@ This repository contains the implementation of various machine learning methods 
 
 The `main` script utilizes these classes to train a model on a specified dataset and predicts on given samples. Since the test data is not provided, the performance of the models is compared on the validation set, which constitutes 20% of the training data. Additionally, Principal Component Analysis (PCA) is implemented for dimensionality reduction to enhance the MLP model’s performance.
 
+For a detailed walkthrough, check the [report.pdf](report.pdf) file.
+
 ## Data Preparation
 
 To get started, you need to download the dataset features from the following link: [MNIST Fashion Dataset](https://drive.google.com/drive/folders/1Ns6g0Gajm1-ZXLHeJIifCXVbcmNGznQI?usp=sharing). Once downloaded, move it to this project folder.
